@@ -1,1 +1,4 @@
-
+[workspace]
+# better version of cargo dependency resolution {by default rust uses version 2 but 3 is more good}
+resolver = "3"  
+members = ["backend", "database"]
