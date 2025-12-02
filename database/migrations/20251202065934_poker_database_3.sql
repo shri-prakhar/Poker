@@ -1,5 +1,7 @@
 -- Add migration script here
 -- Add migration script here
+-- Add migration script here
+-- Add migration script here
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS users(
@@ -39,7 +41,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     room_name TEXT,
     host_user_id uuid REFERENCES users(id),
     room_status TEXT NOT NULL DEFAULT 'waiting', --waiting | playing | finished
-    max_players smallint NOT NULL DEFAULT 6,
+    max_players smallint DEFAULT 6,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 

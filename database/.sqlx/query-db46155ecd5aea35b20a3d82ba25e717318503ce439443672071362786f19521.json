@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT hand_id, seat, user_id, hole_cards, chips_before, chips_after\n            FROM hand_players\n            WHERE hand_id = $1\n            ORDER BY seat\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "hand_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "seat",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "hole_cards",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "chips_before",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "chips_after",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "db46155ecd5aea35b20a3d82ba25e717318503ce439443672071362786f19521"
+}

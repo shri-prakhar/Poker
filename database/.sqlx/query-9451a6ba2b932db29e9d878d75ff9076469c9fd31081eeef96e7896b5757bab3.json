@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE hands \n        SET finished_at = $2, pot = $3 , board = $4 , winner_user_id = $5 , result = $6\n        WHERE id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Int8",
+        "Json",
+        "Uuid",
+        "Json"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9451a6ba2b932db29e9d878d75ff9076469c9fd31081eeef96e7896b5757bab3"
+}

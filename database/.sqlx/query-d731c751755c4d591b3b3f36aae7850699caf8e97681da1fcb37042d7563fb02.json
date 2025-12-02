@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT room_id , seat , user_id , chips , connected, is_dealer\n        FROM room_players\n        WHERE room_id = $1\n        ORDER BY seat\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "room_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "seat",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "chips",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "connected",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "is_dealer",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "d731c751755c4d591b3b3f36aae7850699caf8e97681da1fcb37042d7563fb02"
+}
