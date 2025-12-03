@@ -1,5 +1,4 @@
 use std::env;
-
 use dotenvy::var;
 use secrecy::SecretString;
 
@@ -7,7 +6,7 @@ use secrecy::SecretString;
 pub struct Setting {
     pub database_url: String,
     pub jwt_secret: SecretString,
-    pub default_max_connections: String,
+    pub default_max_connections: i16,
     pub access_token_exp: i64,
     pub refresh_token_exp: i64,
     pub bind_addr:String,
@@ -17,12 +16,12 @@ pub struct Setting {
 impl Setting{
         pub fn from_env() -> anyhow::Result<Self>{
             let database_url = env::var("DATABASE_URL")?;
-            let jwt_secret = env::var("JWT_SECRET").map(SecretString::from)?;
-            let default_max_connections = env::var("DEFAULT_MAX_CONNECTIONS")?;
-            let access_token_exp = env::var("ACCESS_TOKEN_EXP")?;
-            let refresh_token_exp = env::var("REFRESH_TOKEN_EXP")?;
-            let bind_addr = env::var("BIND_ADDR")?;
-            let redis_url = env::var("REDIS_URL")?;
+            let jwt_secret = env::var("JWT_SECRET").map(SecretString::from)?; //this doesn't allow unintentional pr accidental access of secrets
+            let default_max_connections = env::var("DEFAULT_MAX_CONNECTIONS").unwrap_or_else(|_| "20".into()).parse::<i16>()?;
+            let access_token_exp = env::var("ACCESS_TOKEN_EXP").unwrap_or_else(|_| "900".into()).parse::<i64>()?;
+            let refresh_token_exp = env::var("REFRESH_TOKEN_EXP").unwrap_or_else(|_| "604800".into()).parse::<i64>()?;
+            let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into());
+            let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".into());
 
             Ok(Self{
                 database_url,
