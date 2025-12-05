@@ -1,9 +1,9 @@
+mod auth;
 mod config;
-mod state;
-mod telemetry;
 mod errors;
 mod routes;
-mod auth;
+mod state;
+mod telemetry;
 
 fn main() {
     println!("Hello, world!");

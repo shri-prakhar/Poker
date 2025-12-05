@@ -1,12 +1,12 @@
 use std::error;
 
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
+use log::{error, warn};
 use serde::Serialize;
 use thiserror::Error;
-use log::{error , warn};
 
-#[derive(Debug , Error)]
-pub enum ServiceError{
+#[derive(Debug, Error)]
+pub enum ServiceError {
     #[error("Bad Request : {0}")]
     BadRequest(String),
     #[error("Unauthorized: {0}")]
@@ -26,25 +26,25 @@ pub enum ServiceError{
     #[error("Internal Server Error")]
     InternalServerError,
     #[error(transparent)]
-    ExternalError(#[from] anyhow::Error)
+    ExternalError(#[from] anyhow::Error),
 }
 
 #[derive(Debug, Serialize)]
 
-pub struct ErrorResponse{
-    pub error:String,
-    pub details:Option<String> 
+pub struct ErrorResponse {
+    pub error: String,
+    pub details: Option<String>,
 }
 
 impl ServiceError {
-    fn details(&self) -> Option<String>{
+    fn details(&self) -> Option<String> {
         match self {
-            ServiceError::BadRequest(msg) => Some(format!("Invalid Input : {}" , msg)),
-            ServiceError::Unauthorized(msg)=> Some(format!("Unauthorized: {}", msg)),
-            ServiceError::Forbidden(msg)=> Some(format!("Forbidden: {}" , msg)),
+            ServiceError::BadRequest(msg) => Some(format!("Invalid Input : {}", msg)),
+            ServiceError::Unauthorized(msg) => Some(format!("Unauthorized: {}", msg)),
+            ServiceError::Forbidden(msg) => Some(format!("Forbidden: {}", msg)),
             ServiceError::NotFound(msg) => Some(format!("NotFound: {}", msg)),
-            ServiceError::Conflict(msg) =>Some(format!("Conflict: {}" , msg)),
-             _ => None,
+            ServiceError::Conflict(msg) => Some(format!("Conflict: {}", msg)),
+            _ => None,
         }
     }
 }
@@ -67,42 +67,40 @@ impl ResponseError for ServiceError {
 }
 
 fn error_response(&self) -> HttpResponse {
-    match self{
+    match self {
         ServiceError::InternalServerError => {
-            error!("Internal server error occurred:{}" , self);
+            error!("Internal server error occurred:{}", self);
         }
         ServiceError::DataBaseError(_) => {
-            error!("DataBase error: {}" , self)
+            error!("DataBase error: {}", self)
         }
         ServiceError::ExternalError(_) => {
-            error!("External Dependency Error: {}" ,self)
+            error!("External Dependency Error: {}", self)
         }
         ServiceError::ServiceUnavailable => {
-            error!("Service temporarily Error:{}" , self) 
+            error!("Service temporarily Error:{}", self)
         }
         _ => {
-            log::debug!("Client Error: {}",self)
+            log::debug!("Client Error: {}", self)
         }
     }
 
-    let body = ErrorResponse{
+    let body = ErrorResponse {
         error: self.to_string(),
-        details: self.details()
+        details: self.details(),
     };
 
     HttpResponse::build(self.status_code()).json(body)
 }
 
-impl From<anyhow::Error> for ServiceError{
+impl From<anyhow::Error> for ServiceError {
     fn from(error: anyhow::Error) -> Self {
         ServiceError::ExternalError(error)
     }
 }
 
-impl From<sqlx::Error> for ServiceError{
+impl From<sqlx::Error> for ServiceError {
     fn from(error: sqlx::Error) -> Self {
         ServiceError::DataBaseError(error)
     }
 }
-
-
