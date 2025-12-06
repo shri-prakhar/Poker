@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct UserSessions {
-    id: Uuid,
-    user_id: Uuid,
-    device_name: Option<String>,
-    created_at: DateTime<Utc>,
-    last_seen: Option<DateTime<Utc>>,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub device_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub last_seen: Option<DateTime<Utc>>,
 }
 
 pub async fn create_user_sessions(

@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct Action {
-    id: Uuid,
-    hand_id: Option<Uuid>,
-    user_id: Option<Uuid>,
-    action_type: String,
-    amount: Option<i64>,
-    created_at: Option<DateTime<Utc>>,
+    pub id: Uuid,
+    pub hand_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
+    pub action_type: String,
+    pub amount: Option<i64>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 pub async fn insert_action(

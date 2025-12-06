@@ -6,15 +6,15 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct Hand {
-    id: Uuid,
-    room_id: Option<Uuid>,
-    started_at: Option<DateTime<Utc>>,
-    finished_at: Option<DateTime<Utc>>,
-    pot: i64,
-    board: Option<serde_json::Value>,
-    winner_user_id: Option<Uuid>,
-    result: Option<serde_json::Value>,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub room_id: Option<Uuid>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub pot: i64,
+    pub board: Option<serde_json::Value>,
+    pub winner_user_id: Option<Uuid>,
+    pub result: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
 }
 
 pub async fn create_hand(

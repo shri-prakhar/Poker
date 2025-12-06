@@ -4,6 +4,7 @@ use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use log::{error, warn};
 use serde::Serialize;
 use thiserror::Error;
+use tracing::warn;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

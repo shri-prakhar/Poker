@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct Rooms {
-    id: Uuid,
-    room_name: Option<String>,
-    host_user_id: Option<Uuid>,
-    room_status: String,
-    max_players: Option<i16>,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub room_name: Option<String>,
+    pub host_user_id: Option<Uuid>,
+    pub room_status: String,
+    pub max_players: Option<i16>,
+    pub created_at: DateTime<Utc>,
 }
 
 pub async fn create_rooms(

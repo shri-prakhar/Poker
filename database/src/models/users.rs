@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Users {
-    id: Uuid,
-    email: String,
-    hashed_password: String,
-    display_name: Option<String>,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub email: String,
+    pub hashed_password: String,
+    pub display_name: Option<String>,
+    pub created_at: DateTime<Utc>,
 }
 
 pub async fn create_user(

@@ -5,12 +5,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct RoomPlayers {
-    room_id: Uuid,
-    seat: i16,
-    user_id: Uuid,
-    chips: i64,
-    connected: Option<bool>,
-    is_dealer: Option<bool>,
+    pub room_id: Uuid,
+    pub seat: i16,
+    pub user_id: Uuid,
+    pub chips: i64,
+    pub connected: Option<bool>,
+    pub is_dealer: Option<bool>,
 }
 
 //add a player to seat

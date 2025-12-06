@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct RefreshToken {
-    id: Uuid,
-    user_id: Uuid,
-    token_hash: String,
-    expires_at: DateTime<Utc>,
-    revoked: bool,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub token_hash: String,
+    pub expires_at: DateTime<Utc>,
+    pub revoked: bool,
+    pub created_at: DateTime<Utc>,
 }
 
 pub async fn insert_tokens(

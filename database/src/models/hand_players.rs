@@ -5,12 +5,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct HandPlayers {
-    hand_id: Option<Uuid>,
-    seat: i16,
-    user_id: Option<Uuid>,
-    hole_cards: Option<serde_json::Value>,
-    chips_before: Option<i64>,
-    chips_after: Option<i64>,
+    pub hand_id: Option<Uuid>,
+    pub seat: i16,
+    pub user_id: Option<Uuid>,
+    pub hole_cards: Option<serde_json::Value>,
+    pub chips_before: Option<i64>,
+    pub chips_after: Option<i64>,
 }
 
 pub async fn insert_player(
