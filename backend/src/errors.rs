@@ -1,10 +1,7 @@
-use std::error;
-
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
-use log::{error, warn};
 use serde::Serialize;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{error, debug};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -65,7 +62,7 @@ impl ResponseError for ServiceError {
             ServiceError::ExternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-}
+
 
 fn error_response(&self) -> HttpResponse {
     match self {
@@ -82,7 +79,7 @@ fn error_response(&self) -> HttpResponse {
             error!("Service temporarily Error:{}", self)
         }
         _ => {
-            log::debug!("Client Error: {}", self)
+            debug!("Client Error: {}", self)
         }
     }
 
@@ -93,15 +90,10 @@ fn error_response(&self) -> HttpResponse {
 
     HttpResponse::build(self.status_code()).json(body)
 }
-
-impl From<anyhow::Error> for ServiceError {
-    fn from(error: anyhow::Error) -> Self {
-        ServiceError::ExternalError(error)
-    }
 }
 
 impl From<sqlx::Error> for ServiceError {
     fn from(error: sqlx::Error) -> Self {
-        ServiceError::DataBaseError(error)
+        ServiceError::DataBaseError(error.to_string())
     }
 }

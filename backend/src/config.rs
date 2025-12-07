@@ -1,4 +1,3 @@
-use dotenvy::var;
 use secrecy::SecretString;
 use std::env;
 
@@ -16,8 +15,10 @@ pub struct Setting {
 
 impl Setting {
     pub fn from_env() -> anyhow::Result<Self> {
+        dotenvy::dotenv().ok();
+
         let database_url = env::var("DATABASE_URL")?;
-        let jwt_secret = env::var("JWT_SECRET").map(SecretString::from)?; //this doesn't allow unintentional pr accidental access of secrets
+        let jwt_secret = env::var("SECRET_KEY").map(SecretString::from)?; //this doesn't allow unintentional pr accidental access of secrets
         let default_max_connections = env::var("DEFAULT_MAX_CONNECTIONS")
             .unwrap_or_else(|_| "20".into())
             .parse::<i16>()?;

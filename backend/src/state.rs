@@ -13,14 +13,13 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(pool: PgPool, setting: Setting) -> Result<Self> {
+    pub async fn new(pool: PgPool, setting: Setting) -> anyhow::Result<Self> {
         let client = RedisClient::open(setting.redis_url.as_str())?;
 
         let manager = client
-            .get_tokio_connection_manager()
+            .get_connection_manager()
             .await
             .map_err(|e| anyhow::anyhow!("failed to create redis connection manager: {}", e))?;
-
         Ok(Self {
             pool,
             setting,

@@ -51,7 +51,7 @@ pub async fn find_by_id_user(pool: &PgPool, id: Uuid) -> anyhow::Result<Users> {
     Ok(record)
 }
 
-pub async fn find_by_email_user(pool: &PgPool, email: &str) -> anyhow::Result<Users> {
+pub async fn find_by_email_user(pool: &PgPool, email: &str) -> anyhow::Result<Option<Users>> {
     let record = sqlx::query_as!(
         Users,
         r#"
@@ -63,7 +63,7 @@ pub async fn find_by_email_user(pool: &PgPool, email: &str) -> anyhow::Result<Us
     )
     .fetch_one(pool)
     .await?;
-    Ok(record)
+    Ok(Some(record))
 }
 
 pub async fn update_display_name_user(

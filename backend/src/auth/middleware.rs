@@ -1,12 +1,10 @@
 use crate::auth::jwt::validate_token;
-use crate::errors::ServiceError;
 use crate::state::AppState;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::http::header::{AUTHORIZATION, REFRESH};
+use actix_web::http::header::AUTHORIZATION;
 use actix_web::web::Data;
 use actix_web::{Error, HttpMessage};
-use futures::future::LocalBoxFuture;
-use std::future::{Ready, ready};
+use futures_util::future::{ready, LocalBoxFuture, Ready};
 use std::rc::Rc;
 
 pub struct AuthMiddleware;
@@ -19,10 +17,8 @@ impl AuthMiddleware {
 
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>
-        + Send
-        + Sync
-        + 'static,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S::Future: 'static,
     B: 'static,
 {
     type Response = ServiceResponse<B>;
@@ -32,7 +28,7 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        Ready(Ok(AuthMiddlewareMiddleware {
+        ready(Ok(AuthMiddlewareMiddleware {
             service: Rc::new(service),
         }))
     }
@@ -44,10 +40,8 @@ pub struct AuthMiddlewareMiddleware<S> {
 
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareMiddleware<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>
-        + Send
-        + Sync
-        + 'static,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S::Future: 'static,
     B: 'static,
 {
     type Response = ServiceResponse<B>;
@@ -61,32 +55,32 @@ where
         self.service.poll_ready(ctx)
     }
 
-    fn call(&self, mut req: ServiceRequest) -> Self::Future {
-        let srv = self.service.clone();
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let srv = Rc::clone(&self.service);
+
         Box::pin(async move {
             let app_state = match req.app_data::<Data<AppState>>() {
-                Some(d) => d.clone(),
+                Some(data) => data.clone(),
                 None => {
                     return Err(actix_web::error::ErrorInternalServerError(
-                        "app state error",
+                        "app state missing",
                     ));
                 }
             };
-            let token_option = req
+
+            let token = match req
                 .headers()
                 .get(AUTHORIZATION)
                 .and_then(|h| h.to_str().ok())
                 .and_then(|s| {
-                    let s = s.trim(); //removes the initial and trailing whitespaces  
+                    let s = s.trim();
                     if s.to_ascii_lowercase().starts_with("bearer ") {
                         Some(s[7..].trim().to_string())
                     } else {
                         None
                     }
-                });
-
-            let token = match token_option {
-                Some(tk) => tk,
+            }) {
+                Some(t) => t,
                 None => {
                     return Err(actix_web::error::ErrorUnauthorized(
                         "Missing Authorization header",
@@ -95,13 +89,17 @@ where
             };
 
             let token_data = match validate_token(&token, &app_state.setting.jwt_secret) {
-                Ok(tk) => tk,
-                Err(_) => return Err(actix_web::error::ErrorUnauthorized("Invalid Token")),
+                Ok(data) => data,
+                Err(_) => {
+                    return Err(actix_web::error::ErrorUnauthorized("Invalid Token"));
+                }
             };
 
             req.extensions_mut().insert(token_data.claims);
-            let response = srv.call(req).await?;
-            Ok(response)
+
+            
+            let res = srv.call(req).await?;
+            Ok(res)
         })
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Ok};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, encode, jws::decode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, encode, decode};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ pub fn create_access_token(
     let claims = Claims {
         sub: user_id.to_string(),
         session: session_id.map(|s| s.to_string()),
-        exp: utc.timestamp() as usize,
+        exp: utc.timestamp(),
     };
 
     let key = EncodingKey::from_secret(secret.expose_secret().as_bytes());
