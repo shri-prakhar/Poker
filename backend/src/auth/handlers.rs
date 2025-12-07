@@ -1,22 +1,22 @@
 use actix_web::cookie::{Cookie, SameSite, time::Duration as CookieDuration};
 use actix_web::error::HttpError;
-use actix_web::{HttpRequest, HttpResponse, cookie, web};
+use actix_web::{HttpRequest, HttpResponse, cookie, web ,HttpMessage};
 use anyhow::Ok;
 use base64::Engine;
 use base64::engine::general_purpose;
 use chrono::{Duration, Utc};
 use database::models::{
-    create_user, create_user_sessions, find_by_email_user, find_by_hash_tokens, insert_tokens,
-    revoke,
+    create_user, create_user_sessions, find_by_email_user, find_by_hash_tokens, find_by_id_user, insert_tokens, revoke
 };
 use futures::future::ok;
 use rand::RngCore;
 use rand::{TryRngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
 use validator::Validate;
 
-use crate::auth::jwt::create_access_token;
+use crate::auth::jwt::{Claims, create_access_token};
 use crate::auth::password::{self, hash_password, verify_password};
 use crate::config::Setting;
 use crate::errors::ServiceError;
@@ -272,4 +272,23 @@ pub async fn logout(
             .cookie(clear)
             .json(serde_json::json!({"ok" : true})))
     }
+}
+
+pub async fn me(app: web::Data<AppState> , req:HttpRequest)-> Result<HttpResponse , ServiceError>{
+    let claims_opt = req.extensions().get::<Claims>().cloned();
+    let claims = claims_opt.ok_or(ServiceError::Unauthorized("no claims".into()))?;
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| ServiceError::BadRequest("Invalid Sub Claims".into()))?;
+
+    let user = find_by_id_user(&app.pool, user_id)
+    .await
+    .map_err(|e| ServiceError::DataBaseError(e))?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!(
+        {
+            "id" : user.id,
+            "email" : user.email,
+            "display_name" : user.display_name,
+            "created_at" : user.created_at
+        }
+    )))
 }

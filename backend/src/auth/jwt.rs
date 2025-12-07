@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     #[serde(rename = "sub")]
-    sub: String,
+    pub sub: String,
     #[serde(rename = "session", skip_serializing_if = "Option::is_none")]
-    session: Option<String>,
+    pub session: Option<String>,
     #[serde(rename = "exp")]
-    exp: i64,
+    pub exp: i64,
 }
 pub fn create_access_token(
     user_id: &str,
