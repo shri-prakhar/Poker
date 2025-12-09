@@ -61,9 +61,9 @@ pub async fn find_by_email_user(pool: &PgPool, email: &str) -> anyhow::Result<Op
         "#,
         email
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?;
-    Ok(Some(record))
+    Ok(record)
 }
 
 pub async fn update_display_name_user(

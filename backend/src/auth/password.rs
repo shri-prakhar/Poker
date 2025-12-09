@@ -1,9 +1,12 @@
-use argon2::{Argon2, password_hash::{SaltString, rand_core::OsRng, PasswordHasher, PasswordHash, PasswordVerifier}};
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+};
 use tokio::task;
 
 pub async fn hash_password(password: &str) -> anyhow::Result<String> {
     let pwd = password.to_owned();
-     let handle = task::spawn_blocking(move || -> anyhow::Result<String> {
+    let handle = task::spawn_blocking(move || -> anyhow::Result<String> {
         let argon2 = Argon2::default();
         let salt = SaltString::generate(&mut OsRng);
         let password_hash = argon2
@@ -23,11 +26,12 @@ pub async fn hash_password(password: &str) -> anyhow::Result<String> {
 pub async fn verify_password(hash: &str, candidate: &str) -> bool {
     let hash_owned = hash.to_owned();
     let candidate_owned = candidate.to_owned();
-    task::spawn_blocking(move || {
-        match PasswordHash::new(&hash_owned) {
-        Ok(parsed) => Argon2::default().verify_password(candidate_owned.as_bytes(), &parsed).is_ok(),
+    task::spawn_blocking(move || match PasswordHash::new(&hash_owned) {
+        Ok(parsed) => Argon2::default()
+            .verify_password(candidate_owned.as_bytes(), &parsed)
+            .is_ok(),
         Err(_) => false,
-}})
+    })
     .await
     .unwrap_or(false)
 }

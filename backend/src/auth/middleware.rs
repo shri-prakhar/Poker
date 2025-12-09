@@ -4,7 +4,7 @@ use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::http::header::AUTHORIZATION;
 use actix_web::web::Data;
 use actix_web::{Error, HttpMessage};
-use futures_util::future::{ready, LocalBoxFuture, Ready};
+use futures_util::future::{LocalBoxFuture, Ready, ready};
 use std::rc::Rc;
 
 pub struct AuthMiddleware;
@@ -79,7 +79,7 @@ where
                     } else {
                         None
                     }
-            }) {
+                }) {
                 Some(t) => t,
                 None => {
                     return Err(actix_web::error::ErrorUnauthorized(
@@ -97,7 +97,6 @@ where
 
             req.extensions_mut().insert(token_data.claims);
 
-            
             let res = srv.call(req).await?;
             Ok(res)
         })

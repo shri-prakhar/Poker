@@ -1,10 +1,11 @@
 use actix_web::cookie::{Cookie, SameSite, time::Duration as CookieDuration};
-use actix_web::{HttpRequest, HttpResponse, web ,HttpMessage};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, web};
 use base64::Engine;
-use base64::engine::{general_purpose};
+use base64::engine::general_purpose;
 use chrono::{Duration, Utc};
 use database::models::{
-    create_user, create_user_sessions, find_by_email_user, find_by_hash_tokens, find_by_id_user, insert_tokens, revoke
+    create_user, create_user_sessions, find_by_email_user, find_by_hash_tokens, find_by_id_user,
+    insert_tokens, revoke,
 };
 use rand::{TryRngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
@@ -97,10 +98,7 @@ pub async fn signup(
         .validate()
         .map_err(|e| ServiceError::ValidationError(format!("{:?}", e)))?;
     let email = payload.email.trim().to_lowercase();
-    if let Some(_) = find_by_email_user(&app.pool, &email)
-        .await
-        .map_err(|e| ServiceError::ExternalError(e))?
-    {
+    if find_by_email_user(&app.pool, &email).await?.is_some() {
         return Err(ServiceError::Conflict("User Already Exists".into()));
     }
     let hashed = hash_password(&payload.password)
@@ -189,7 +187,7 @@ pub struct RefreshDto {
     pub refresh_token: Option<String>,
 }
 
-pub async fn refresh_fresh(
+pub async fn refresh_token(
     app: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<RefreshDto>,
@@ -264,20 +262,21 @@ pub async fn logout(
                 .map_err(|e| ServiceError::ExternalError(e))?;
         }
     }
-            let clear = build_clear_cookie(&app.setting);
-        Ok(HttpResponse::Ok()
-            .cookie(clear)
-            .json(serde_json::json!({"ok" : true})))
+    let clear = build_clear_cookie(&app.setting);
+    Ok(HttpResponse::Ok()
+        .cookie(clear)
+        .json(serde_json::json!({"ok" : true})))
 }
 
-pub async fn me(app: web::Data<AppState> , req:HttpRequest)-> Result<HttpResponse , ServiceError>{
+pub async fn me(app: web::Data<AppState>, req: HttpRequest) -> Result<HttpResponse, ServiceError> {
     let claims_opt = req.extensions().get::<Claims>().cloned();
     let claims = claims_opt.ok_or(ServiceError::Unauthorized("no claims".into()))?;
-    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| ServiceError::BadRequest("Invalid Sub Claims".into()))?;
+    let user_id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| ServiceError::BadRequest("Invalid Sub Claims".into()))?;
 
     let user = find_by_id_user(&app.pool, user_id)
-    .await
-    .map_err(|e| ServiceError::DataBaseError(e.to_string()))?;
+        .await
+        .map_err(|e| ServiceError::DataBaseError(e.to_string()))?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!(
         {

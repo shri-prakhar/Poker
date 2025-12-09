@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use serde::Serialize;
 use thiserror::Error;
-use tracing::{error, debug};
+use tracing::{debug, error};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -63,33 +63,32 @@ impl ResponseError for ServiceError {
         }
     }
 
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            ServiceError::InternalServerError => {
+                error!("Internal server error occurred:{}", self);
+            }
+            ServiceError::DataBaseError(_) => {
+                error!("DataBase error: {}", self)
+            }
+            ServiceError::ExternalError(_) => {
+                error!("External Dependency Error: {}", self)
+            }
+            ServiceError::ServiceUnavailable => {
+                error!("Service temporarily Error:{}", self)
+            }
+            _ => {
+                debug!("Client Error: {}", self)
+            }
+        }
 
-fn error_response(&self) -> HttpResponse {
-    match self {
-        ServiceError::InternalServerError => {
-            error!("Internal server error occurred:{}", self);
-        }
-        ServiceError::DataBaseError(_) => {
-            error!("DataBase error: {}", self)
-        }
-        ServiceError::ExternalError(_) => {
-            error!("External Dependency Error: {}", self)
-        }
-        ServiceError::ServiceUnavailable => {
-            error!("Service temporarily Error:{}", self)
-        }
-        _ => {
-            debug!("Client Error: {}", self)
-        }
+        let body = ErrorResponse {
+            error: self.to_string(),
+            details: self.details(),
+        };
+
+        HttpResponse::build(self.status_code()).json(body)
     }
-
-    let body = ErrorResponse {
-        error: self.to_string(),
-        details: self.details(),
-    };
-
-    HttpResponse::build(self.status_code()).json(body)
-}
 }
 
 impl From<sqlx::Error> for ServiceError {
