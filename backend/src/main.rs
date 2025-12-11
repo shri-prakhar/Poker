@@ -7,10 +7,12 @@ use tracing::info;
 mod auth;
 mod config;
 mod errors;
+mod game_manager;
+mod poker_engine;
 mod routes;
 mod state;
 mod telemetry;
-mod poker_engine;
+mod ws_server;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {

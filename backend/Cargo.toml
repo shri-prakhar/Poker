@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 database = {path = "../database"}
 actix-web = "4"
-actix-web-actors = "4"
+actix-ws = "0.3"
+dashmap = "6"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls", "macros", "uuid", "chrono"] }
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -35,3 +36,5 @@ redis = { version = "1" , features = ["tokio-comp" , "connection-manager"]}
 num_cpus = "1"
 futures-util = "0.3.31"
 futures-core = "0.3.31"
+bincode = "2"
+tokio-util = {version = "0.7" , features = []}
