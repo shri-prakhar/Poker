@@ -10,6 +10,7 @@ mod errors;
 mod routes;
 mod state;
 mod telemetry;
+mod poker_engine;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
