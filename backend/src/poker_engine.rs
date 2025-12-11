@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use argon2::password_hash::rand_core::{OsRng, RngCore};
-use rand::{SeedableRng, distr::uniform::UniformInt, rngs::StdRng, seq::SliceRandom};
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug , Clone, Copy , PartialEq, Eq , Hash , Serialize , Deserialize)]
@@ -120,7 +120,7 @@ pub fn evaluate_five(cards: &[Card; 5]) -> HandRank {
   ranks.sort_by(|a , b| b.cmp(a)); //descending
 
   let mut freq = HashMap::<u8 , usize>::new();
-  for r in ranks {
+  for &r in &ranks {
     *freq.entry(r).or_insert(0) += 1;
   }
 
@@ -142,11 +142,11 @@ pub fn evaluate_five(cards: &[Card; 5]) -> HandRank {
   ranks_for_straight.sort_by(|a , b| b.cmp(a));
 
   for i in 0..=(ranks_for_straight.len().saturating_sub(5)){
-    let mut ok = true;
+    let ok = true;
     for j in 0..4{
       if ranks_for_straight[i+j] != ranks_for_straight[i + j + 1] + 1{
         is_straight = false;
-        break;
+        break;  
       } 
     }
     if ok{
@@ -164,5 +164,86 @@ pub fn evaluate_five(cards: &[Card; 5]) -> HandRank {
     }
   }
   );
+
+  //straight flush
+  if is_flush && is_straight {
+    return HandRank { category: 8, tiebreakers: vec![top_straight]};
+  }
+
+  //four of a kind 
+  if counts[0].0 == 4{
+    let four_rank = counts[0].1;
+    let kicker = *ranks.iter().find(|&&r| r != four_rank).unwrap();
+    return HandRank { category: 7, tiebreakers: vec![four_rank , kicker] };
+  }
   
+  //full house 3 + 2
+  if counts[0].0 == 3 && counts.len() >= 2 && counts[1].0 == 2{
+    let triple = counts[0].1;
+    let pair = counts[1].1;
+    return HandRank { category: 6, tiebreakers: vec![triple , pair] };
+  }
+
+  //flush
+  if is_flush {
+    return HandRank { category: 5, tiebreakers: ranks.clone()};
+  }
+
+  //straight
+  if is_straight{
+    return HandRank { category: 4, tiebreakers: vec![top_straight]};
+  }
+
+  //Three of a kind 
+  if counts[0].0 == 3{
+    let triple = counts[0].1;
+    let kickers = ranks.iter().filter(|&&r| r != triple).cloned().collect::<Vec<_>>();
+    return HandRank { category: 3, tiebreakers: [vec![triple] , kickers].concat() };
+  }
+
+  //two pair 
+  if counts[0].0 == 2 && counts.len() >=2 && counts[1].0 == 2 {
+    let high_pair = counts[0].1;
+    let low_pair = counts[1].1;
+    let kicker = *ranks.iter().find(|&&r| r != low_pair && r != high_pair).unwrap(); 
+    HandRank { category: 2, tiebreakers: vec![high_pair , low_pair , kicker] };
+  }
+
+  //one pair
+  if counts[0].0 == 2 {
+    let pair_rank = counts[0].1;
+    let kickers = ranks.iter().filter(|&&r| r != pair_rank).cloned().collect::<Vec<_>>();
+    return HandRank { category: 1, tiebreakers: [vec![pair_rank] , kickers].concat() };
+  } 
+
+  //high card
+  HandRank { category: 0, tiebreakers: ranks.clone() }
 }
+
+
+pub fn evaluate_best_of_seven(cards: [Card; 7]) -> HandRank {
+  let n = cards.len();
+  assert!(n>=5 && n<=7 , "cards length must be less than 7 and greater than 5");
+  let mut best = None;
+  let mut indexes = Vec::new();
+  for a in 0..n{
+    for b in a..n{
+      for c in b..n{
+        for d in c..n{
+          for e in  d..n{
+            indexes.clear();
+            indexes.push(a);indexes.push(b);indexes.push(c);indexes.push(d);indexes.push(e);
+            let hand = [cards[indexes[0]],cards[indexes[1]],cards[indexes[2]],cards[indexes[3]],cards[indexes[4]]];
+            let rank = evaluate_five(&hand);
+            match best {
+              None => best = Some(rank),
+              Some(ref cur) => if rank > *cur { best = Some(rank)}
+            }
+          }
+        }
+      }
+    }
+  }
+  best.expect("at least one five card hand")
+}
+
