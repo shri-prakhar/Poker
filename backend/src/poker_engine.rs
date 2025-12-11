@@ -237,7 +237,7 @@ pub fn evaluate_best_of_seven(cards: [Card; 7]) -> HandRank {
             let rank = evaluate_five(&hand);
             match best {
               None => best = Some(rank),
-              Some(ref cur) => if rank > *cur { best = Some(rank)}
+              Some(ref cur) => if rank > *cur { best = Some(rank)} // this comparison is based on ord trait implemented on HandRank it first compares against category then tiebreakers
             }
           }
         }
