@@ -81,6 +81,18 @@ impl GameManager {
             setting,
         }
     }
+
+    pub async fn ensure_room(&self , room_id: &str , max_players: usize) -> Arc<RwLock<RoomState>>{
+        if let Some(ev) = self.rooms.get(room_id) {
+            ev.value().clone()
+        }else{
+            let s = Arc::new(RwLock::new(RoomState::new(room_id, max_players)));
+            self.rooms.insert(room_id.to_string(), s.clone());
+            s
+        }
+    }
+
+    
 }
 
 
