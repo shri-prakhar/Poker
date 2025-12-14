@@ -1,15 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::Ok;
+use chrono::Utc;
 use dashmap::DashMap;
-use database::models::{add_player, remove_players};
+use database::models::{add_player, create_hand, insert_player, remove_players};
 use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::{config::Setting, poker_engine::Card, ws_server::ClientInfo};
+use crate::{config::Setting, poker_engine::{Card, new_deck, shuffle_deck}, ws_server::ClientInfo};
 
 #[derive(Debug , Clone , Serialize , Deserialize)]
 pub struct OutgoingEvent{
@@ -32,7 +33,7 @@ pub struct HandState {
     pub started_at: i64,
     pub pot: i64,
     pub board: Vec<Card>,              //flop . turn , river cards
-    pub hole_cards: Vec<(Card, Card)>, //per seat
+    pub hole_cards: Vec<Option<(Card, Card)>>, //per seat
     pub current_turn: Option<usize>,
     pub round: String, //{current stage :"pre-flop" , "flop" , "turn" , "river"}
     pub players_in_hand: Vec<bool>, //false means player folded
@@ -123,18 +124,77 @@ impl GameManager {
     pub async fn leave_room(&self ,user_id: Uuid , room_id: Uuid) -> anyhow::Result<()>{
         if let Some(entry) = self.rooms.get(&room_id){
             let mut r = entry.value().write().map_err(|e| anyhow::anyhow!("not available {}" , e))?;
-            for slot in &mut r.seats{
+            for slot in r.seats.iter_mut(){
                 if let Some(ps) = slot{
                     if ps.user_id == user_id{
-                        *slot = None;
                         let _ = remove_players(&self.pool, room_id, ps.seat as i16).await;
                         //TODO:: Implement emit event
+                        *slot = None;
                         break;
                     }
                 }
             }
         }
         Ok(())
+    }
+    
+    pub async fn start_hand(&self , room_id: Uuid) -> anyhow::Result<Uuid>{
+        let entry = self.rooms.get(&room_id).ok_or_else(|| anyhow::anyhow!("room not found")).unwrap();
+        let mut r = entry.value().write().map_err(|e| anyhow::anyhow!("room already occupied , {}" , e))?;
+        let mut deck = new_deck();
+        shuffle_deck(&mut deck);
+        let mut hole_cards = vec![None; r.seats.len()];
+        let mut deck_cards = 0usize;
+        for (i , slot) in r.seats.iter().enumerate(){
+            if slot.is_some(){
+                let card1 = deck.remove(0);
+                let card2 = deck.remove(0);
+                hole_cards[i] = Some((card1 , card2));
+            }
+        }
+        let hand_id = Uuid::new_v4();
+        let started_at = Utc::now();
+        let players_in_hand = r.seats.iter().map(|slot| slot.is_some()).collect::<Vec<_>>();
+        let hand = HandState{
+            id: hand_id,
+            started_at: started_at.timestamp_millis(),
+            pot : 0,
+            board: Vec::new(),
+            hole_cards: hole_cards.clone(),
+            current_turn: Some(Self::first_to_act_index(&r)),
+            round: "pre-flop".to_string(),
+            players_in_hand
+        };
+        let _ = create_hand(&self.pool, Some(room_id), Some(started_at)).await;
+        for (i , slot) in r.seats.iter().enumerate(){
+            if let Some(ps) = slot{
+                if let Some((card1 , card2)) = &hole_cards[i]{
+                    let hole_j = serde_json::json!([card1.to_string() , card2.to_string()]);
+                    let _ = insert_player(&self.pool, Some(hand_id), (i + 1) as i16, Some(ps.user_id), Some(hole_j), Some(ps.chips), Some(ps.chips)).await;
+                }
+            }
+        }
+        r.active_hand = Some(hand);
+        drop(r);
+        //TODO::spawn_timer
+        //TODO::Implement emit events
+        Ok(hand_id)
+    }
+
+    fn first_to_act_index(r: &RoomState) -> usize{
+        if let Some(d) = r.dealer_index {
+            let n = r.seats.len();
+            for i in 1..=n {
+                let index = (d + i) % n;
+                if r.seats[index].is_some(){ return index; }
+            }
+            0   
+        }else{
+            for (i , s) in r.seats.iter().enumerate(){
+                if s.is_some() { return i; }
+            }
+            0
+        }
     }
 }
 
