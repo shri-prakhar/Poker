@@ -3,14 +3,14 @@ use std::sync::{Arc, RwLock};
 use anyhow::Ok;
 use chrono::Utc;
 use dashmap::DashMap;
-use database::models::{add_player, create_hand, insert_action, insert_player, remove_players};
+use database::models::{add_player, create_hand, finish_hand, hand_players, insert_action, insert_player, remove_players};
 use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{PgPool, any};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::{config::Setting, poker_engine::{Card, new_deck, shuffle_deck}, ws_server::ClientInfo};
+use crate::{config::Setting, poker_engine::{Card, HandRank, evaluate_best_of_seven, new_deck, shuffle_deck}, ws_server::ClientInfo};
 
 #[derive(Debug , Clone , Serialize , Deserialize)]
 pub struct OutgoingEvent{
@@ -265,7 +265,42 @@ impl GameManager {
             Ok(())
         }
 
-        
+        pub async fn finish_hand(&self , room_id: Uuid) -> anyhow::Result<()>{
+            let entry = self.rooms.get(&room_id).ok_or_else(|| anyhow::anyhow!("room not found"))?;
+            let mut r = entry.value().write().map_err(|e| anyhow::anyhow!("not availble for write {}" , e))?;
+            let hs = r.active_hand.take().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+            let mut best_rank: Option<(usize , HandRank)> = None;
+            for (i, alive) in hs.players_in_hand.iter().enumerate(){
+                if !*alive { continue; }
+                if let Some((c1 , c2)) = &hs.hole_cards[i]{
+                    let mut cards = hs.board.clone();
+                    cards.push(*c1);
+                    cards.push(*c2);
+                    let rank = evaluate_best_of_seven(&cards);
+                    match &best_rank{
+                        None => best_rank = Some((i , rank)),
+                        Some((_ , rprev)) => {
+                            if rank > *rprev { best_rank = Some((i , rank))}
+                        }
+                    }
+                }
+            }
+
+            if let Some((winner_index , rank)) = best_rank{
+                if let Some(Some(ps)) = r.seats.get_mut(winner_index){
+                    ps.chips += hs.pot;
+                    let winner_id = ps.user_id;
+                    let time = Utc::now();
+                    let _ = finish_hand(&self.pool, hs.id, Some(time), hs.pot, None, Some(winner_id), Some(serde_json::json!({"pot": hs.pot}))).await;
+                    //TODO: emit event
+                }else{
+                    let time = Utc::now();
+                    let _ = finish_hand(&self.pool, hs.id, Some(time), hs.pot, None, None, Some(serde_json::json!({"pot": hs.pot}))).await;
+                    //TODO: emit event 
+                }
+            }
+            Ok(())
+        }
 
     fn next_live_player(player_in_hand: &Vec<bool> , from: usize) -> Option<usize>{
         let n = player_in_hand.len();

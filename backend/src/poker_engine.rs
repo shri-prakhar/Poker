@@ -259,7 +259,7 @@ pub fn evaluate_five(cards: &[Card; 5]) -> HandRank {
     }
 }
 
-pub fn evaluate_best_of_seven(cards: [Card; 7]) -> HandRank {
+pub fn evaluate_best_of_seven(cards: &Vec<Card>) -> HandRank {
     let n = cards.len();
     assert!(
         n >= 5 && n <= 7,
