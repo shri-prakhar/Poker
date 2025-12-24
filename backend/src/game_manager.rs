@@ -197,66 +197,75 @@ impl GameManager {
         }
     }
 
-    pub async fn handle_action(&self , user_id: Uuid , room_id: Uuid , action: serde_json::Value) -> anyhow::Result<()>{
-        let entry = self.rooms.get(&room_id).ok_or_else(|| anyhow::anyhow!("room not found"))?;
-        let mut r = entry .value().write().map_err(|e| anyhow::anyhow!("Can't Write {}" , e ))?;
-        let seat_index = r.seats.iter().position(|s| s.as_ref().map(|p| p.user_id == user_id).unwrap_or(false)).ok_or_else(|| anyhow::anyhow!("player not found"))?;
-        let hs = r.active_hand.take().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
-        let seat = r.seats[seat_index].as_mut();
-        if Some(seat_index) != hs.current_turn {
-            return Err(anyhow::anyhow!("it's not player's turn"));
-        }
-        let action_type = action.get("type").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
-        let amount = action.get("amount").and_then(|v| v.as_i64()).unwrap_or(0);
-        let hs1 = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
-        match action_type.as_str(){
-            "fold" => {
-                
-                hs1.players_in_hand[seat_index] = false;
-                let _  = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
-                //TODO:: Implement emit event   
-            },
-            "bet" | "raise" | "call" => {
-                
-                if let Some(ps) = seat{
-                    ps.chips -= amount;
-                } 
-                hs1.pot += amount;
-                let _ = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
-                //TODO:: Implement emit event
-            },
-            "check" => {
-                let _ = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
-                //TODO:: Implement emit event
-            },
-            "allin" => {
-                if let Some(ps) = r.seats[seat_index].as_mut(){
-                    let amt = ps.chips;
-                    ps.chips = 0;
-                    hs1.pot += amt;
+        pub async fn handle_action(&self , user_id: Uuid , room_id: Uuid , action: serde_json::Value) -> anyhow::Result<()>{
+            let entry = self.rooms.get(&room_id).ok_or_else(|| anyhow::anyhow!("room not found"))?;
+            let mut r = entry .value().write().map_err(|e| anyhow::anyhow!("Can't Write {}" , e ))?;
+            let seat_index = r.seats.iter().position(|s| s.as_ref().map(|p| p.user_id == user_id).unwrap_or(false)).ok_or_else(|| anyhow::anyhow!("player not found"))?;
+            {
+                let hs = r.active_hand.as_ref().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+                //let seat = r.seats[seat_index].as_mut();
+                if Some(seat_index) != hs.current_turn {
+                    return Err(anyhow::anyhow!("it's not player's turn"));
+                }
+            }
+            let action_type = action.get("type").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+            let amount = action.get("amount").and_then(|v| v.as_i64()).unwrap_or(0);
+            //let hs = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+            match action_type.as_str(){
+                "fold" => {
+                    let hs = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+                    hs.players_in_hand[seat_index] = false;
+                    let _  = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
+                    //TODO:: Implement emit event   
+                },
+                "bet" | "raise" | "call" => {
+                    
+                    if let Some(ps) = r.seats[seat_index].as_mut(){
+                        ps.chips -= amount;
+                    }
+                    let hs = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?; 
+                    hs.pot += amount;
                     let _ = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
                     //TODO:: Implement emit event
-                }   
-            },
-            other => {
-                return Err(anyhow::anyhow!("Unsupported Action {}" , other));
+                },
+                "check" => {
+                    let hs = r.active_hand.as_ref().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+                    let _ = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
+                    //TODO:: Implement emit event
+                },
+                "allin" => {
+                    if let Some(ps) = r.seats[seat_index].as_mut(){
+                        let amt = ps.chips;
+                        ps.chips = 0;
+                        let hs = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+                        hs.pot += amt;
+                        let _ = insert_action(&self.pool, Some(hs.id), Some(user_id), Some(action_type), Some(amount)).await;
+                        //TODO:: Implement emit event
+                    }   
+                },
+                other => {
+                    return Err(anyhow::anyhow!("Unsupported Action {}" , other));
+                }
             }
+            let next_turn = {
+                let hs = r.active_hand.as_mut().ok_or_else(|| anyhow::anyhow!("no active hand"))?;
+                let next = Self::next_live_player(&hs.players_in_hand, seat_index);
+                hs.current_turn = next;
+            };
+            
+            //TODO: spawn timer
+            if let Some(entry2) = self.rooms.get(&room_id){
+                let r2 = entry2.value().read().map_err(|e| anyhow::anyhow!("room not available {}" , e))?;
+                let alive = r2.active_hand.as_ref().unwrap().players_in_hand.iter().filter(|&&p| p).count();
+                if alive <= 1{
+                    drop(r2);
+                    //TODO:: finish hand
+                }
+            }
+            Ok(())
         }
-        drop(r);
-        let next = Self::next_live_player(&hs.players_in_hand, seat_index);
-        hs.current_turn = next;
+
         
-        //TODO: spawn timer
-        if let Some(entry2) = self.rooms.get(&room_id){
-            let r2 = entry2.value().read().map_err(|e| anyhow::anyhow!("room not available {}" , e))?;
-            let alive = r2.active_hand.as_ref().unwrap().players_in_hand.iter().filter(|&&p| p).count();
-            if alive <= 1{
-                drop(r2);
-                //TODO:: finish hand
-            }
-        }
-        Ok(())
-    }
 
     fn next_live_player(player_in_hand: &Vec<bool> , from: usize) -> Option<usize>{
         let n = player_in_hand.len();
