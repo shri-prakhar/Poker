@@ -1,4 +1,5 @@
-use anyhow::Ok;
+use redis::AsyncCommands;
+use redis::RedisError;
 use chrono::Utc;
 use dashmap::DashMap;
 use database::models::{
@@ -16,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     config::Setting,
     poker_engine::{Card, HandRank, evaluate_best_of_seven, new_deck, shuffle_deck},
-    ws_server::ClientInfo,
+    ws_server::{ClientInfo, Outgoing},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -524,6 +525,46 @@ impl GameManager {
     }
 
     pub async fn emit_events(&self, room_id: Uuid , event_type: &str , payload: serde_json::Value) -> anyhow::Result<()>{
-        
+        let ev = OutgoingEvent{
+            event_type: event_type.to_string(),
+            room_id,
+            payload: payload.clone(),
+            emitted_at: Utc::now().timestamp_millis(),
+        };
+        //broadcast locally
+        if let Some(clients) = self.client_registry.get(&room_id){
+            if let Ok(s) =  serde_json::to_string(&ev) {
+                for ci in clients.iter(){
+                    let _ = ci.tx.try_send(Outgoing::Text(s.clone()));
+                }
+            }
+        }
+
+        //append to redis stream "rooms:events"
+        let stream_key = "rooms:events";
+        let mut connection = self.redis.clone();
+        // let fields = vec![
+        //     ("room" , &room_id.to_string()),
+        //     ("type" , &event_type.to_string()),
+        //     ("payload" , &serde_json::to_string(&payload)?),
+        //     ("emitted_at" ,&ev.emitted_at.to_string())
+        // ];
+        let room_id_str = room_id.to_string();
+        let type_str =  event_type.to_string();
+        let payload =  serde_json::to_string(&payload)?;
+        let emitted_at = ev.emitted_at.to_string();
+
+        //XADD
+        let _i: String = redis::cmd("XADD")
+        .arg(stream_key)
+        .arg("*")
+        .arg("room").arg(room_id_str)
+        .arg("type").arg(type_str)
+        .arg("payload").arg(payload)
+        .arg("emitted_at").arg(emitted_at)
+        .query_async(&mut connection).await
+        .map_err(|e| anyhow::anyhow!("redis XADD error: {}", e))?;
+
+        Ok(())
     }
 }
